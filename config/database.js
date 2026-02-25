@@ -19,7 +19,6 @@ const connectDB = async () => {
 
     // Configure mongoose to handle connection better
     mongoose.set('bufferCommands', false); // Disable buffering - fail fast if not connected
-    mongoose.set('bufferMaxEntries', 0); // Disable buffering
     
     const conn = await mongoose.connect(uri, {
       useNewUrlParser: true,

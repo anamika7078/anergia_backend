@@ -64,7 +64,7 @@ blogSchema.pre('save', function (next) {
 });
 
 // Index for faster queries
-blogSchema.index({ slug: 1 });
+// Note: slug index is automatically created by unique: true, so we don't need to define it explicitly
 blogSchema.index({ published: 1 });
 blogSchema.index({ publishedAt: -1 });
 

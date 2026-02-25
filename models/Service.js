@@ -54,7 +54,7 @@ const serviceSchema = new mongoose.Schema(
 );
 
 // Index for faster queries
-serviceSchema.index({ slug: 1 });
+// Note: slug index is automatically created by unique: true, so we don't need to define it explicitly
 serviceSchema.index({ category: 1 });
 serviceSchema.index({ isActive: 1 });
 
