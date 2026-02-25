@@ -16,33 +16,33 @@ const checkDBConnection = async (req, res, next) => {
   const readyState = mongoose.connection.readyState;
   
   // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
-  // Allow requests if connected or actively connecting
+  // Allow requests if connected
   if (readyState === 1) {
     // Already connected
     return next();
   }
 
-  if (readyState === 2) {
-    // Connection in progress - wait for it (max 15 seconds)
-    const connected = await waitForConnection(15000);
-    if (connected) {
-      return next();
-    }
-  }
-
-  // If disconnected, try to wait for connection (max 15 seconds)
-  if (readyState === 0 || readyState === 3) {
-    const connected = await waitForConnection(15000);
-    if (connected) {
-      return next();
-    }
+  // If connecting, disconnected, or disconnecting, wait for connection
+  // waitForConnection will attempt to reconnect if needed
+  const connected = await waitForConnection(20000); // Increased timeout to 20 seconds
+  
+  if (connected) {
+    return next();
   }
 
   // Connection unavailable after waiting
+  // Provide more helpful error message
+  const stateMessages = {
+    0: 'disconnected',
+    2: 'connecting (timeout)',
+    3: 'disconnecting',
+  };
+  
   return res.status(STATUS.SERVER_ERROR).json({
     success: false,
     message: 'Database connection unavailable. Please try again in a moment.',
-    error: 'Database connection timeout',
+    error: `Database connection timeout (state: ${stateMessages[readyState] || readyState})`,
+    retry: true,
   });
 };
 

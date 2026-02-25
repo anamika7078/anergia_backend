@@ -105,6 +105,7 @@ const isConnected = () => {
 
 /**
  * Wait for MongoDB connection (with timeout)
+ * Attempts to connect if not already connecting
  * @param {number} timeoutMs - Maximum time to wait in milliseconds
  * @returns {Promise<boolean>} True if connected, false if timeout
  */
@@ -113,31 +114,59 @@ const waitForConnection = async (timeoutMs = 15000) => {
     return true;
   }
 
+  const readyState = mongoose.connection.readyState;
+  
+  // If disconnected (0) or disconnecting (3), try to initiate connection
+  // Only if not already connecting (state 2)
+  if ((readyState === 0 || readyState === 3) && readyState !== 2) {
+    const uri = process.env.MONGODB_URI;
+    if (uri) {
+      // Only attempt connection if we have a URI
+      console.log('⚠️  Database disconnected. Attempting to reconnect...');
+      try {
+        // Attempt connection without waiting (fire and forget)
+        // Mongoose handles multiple connection attempts safely
+        connectDB().catch((err) => {
+          console.error('❌ Connection attempt failed:', err.message);
+        });
+      } catch (err) {
+        console.error('❌ Failed to initiate connection:', err.message);
+      }
+    }
+  }
+
   return new Promise((resolve) => {
     const startTime = Date.now();
+    let checkInterval;
     
     // Listen for connection event
     const onConnected = () => {
-      mongoose.connection.removeListener('connected', onConnected);
-      mongoose.connection.removeListener('error', onError);
-      clearTimeout(timeout);
+      cleanup();
       resolve(true);
     };
     
     // Listen for error event
-    const onError = () => {
-      // Don't resolve on error, let timeout handle it
+    const onError = (err) => {
+      // Log error but don't resolve - let timeout handle it
+      console.error('❌ Connection error while waiting:', err.message);
+    };
+    
+    // Cleanup function
+    const cleanup = () => {
+      if (checkInterval) clearInterval(checkInterval);
+      mongoose.connection.removeListener('connected', onConnected);
+      mongoose.connection.removeListener('error', onError);
     };
     
     // Set timeout
     const timeout = setTimeout(() => {
-      mongoose.connection.removeListener('connected', onConnected);
-      mongoose.connection.removeListener('error', onError);
+      cleanup();
       resolve(false);
     }, timeoutMs);
     
     // Check if already connected
     if (isConnected()) {
+      cleanup();
       clearTimeout(timeout);
       resolve(true);
       return;
@@ -148,17 +177,13 @@ const waitForConnection = async (timeoutMs = 15000) => {
     mongoose.connection.once('error', onError);
     
     // Also poll in case events are missed
-    const checkInterval = setInterval(() => {
+    checkInterval = setInterval(() => {
       if (isConnected()) {
-        clearInterval(checkInterval);
-        mongoose.connection.removeListener('connected', onConnected);
-        mongoose.connection.removeListener('error', onError);
+        cleanup();
         clearTimeout(timeout);
         resolve(true);
       } else if (Date.now() - startTime > timeoutMs) {
-        clearInterval(checkInterval);
-        mongoose.connection.removeListener('connected', onConnected);
-        mongoose.connection.removeListener('error', onError);
+        cleanup();
         clearTimeout(timeout);
         resolve(false);
       }
