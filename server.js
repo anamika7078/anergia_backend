@@ -35,8 +35,12 @@ const { RATE_LIMIT } = require('./config/constants');
 // Initialize Express app
 const app = express();
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB (async, but don't block server startup)
+connectDB().catch((err) => {
+  console.error('❌ Failed to connect to MongoDB:', err.message);
+  // Don't exit - allow server to start and retry connection
+  // MongoDB will buffer operations and connect when available
+});
 
 // CORS Configuration - MUST be before other middleware
 // Allow multiple origins for development and production

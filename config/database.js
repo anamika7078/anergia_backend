@@ -15,6 +15,10 @@ const connectDB = async () => {
     const conn = await mongoose.connect(uri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 30000, // 30 seconds timeout
+      socketTimeoutMS: 45000, // 45 seconds socket timeout
+      bufferCommands: true, // Buffer commands if not connected
+      bufferMaxEntries: 0, // Disable mongoose buffering
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
@@ -37,7 +41,31 @@ const connectDB = async () => {
 
   } catch (error) {
     console.error('❌ Error connecting to MongoDB:', error.message);
-    process.exit(1);
+    // Don't exit - allow server to start and retry
+    // The server can still respond to health checks
+    console.log('⚠️  Server will continue without database connection. Retrying in 5 seconds...');
+    
+    // Retry connection after 5 seconds (only once to avoid infinite loop)
+    setTimeout(async () => {
+      try {
+        console.log('🔄 Retrying MongoDB connection...');
+        const uri = process.env.MONGODB_URI;
+        if (uri) {
+          await mongoose.connect(uri, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 30000,
+            socketTimeoutMS: 45000,
+            bufferCommands: true,
+            bufferMaxEntries: 0,
+          });
+          console.log(`✅ MongoDB Connected: ${mongoose.connection.host}`);
+        }
+      } catch (retryError) {
+        console.error('❌ Retry failed:', retryError.message);
+        console.log('⚠️  MongoDB connection will be retried on next request');
+      }
+    }, 5000);
   }
 };
 
