@@ -42,8 +42,29 @@ connectDB();
 app.use(helmet()); // Set various HTTP headers for security
 
 // CORS Configuration
+// Allow multiple origins for development and production
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'https://anergiafrontend.vercel.app',
+  'http://localhost:3000',
+].filter(Boolean); // Remove undefined values
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list or is a Vercel deployment
+    const isAllowed = allowedOrigins.some(allowed => origin === allowed) ||
+      origin.endsWith('.vercel.app') || // Allow all Vercel deployments
+      origin.includes('localhost'); // Allow localhost in any port
+    
+    if (isAllowed || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
 };
