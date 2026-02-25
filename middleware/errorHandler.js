@@ -41,6 +41,23 @@ const errorHandler = (err, req, res, next) => {
     error = { message, statusCode: STATUS.UNAUTHORIZED };
   }
 
+  // MongoDB connection/buffering errors
+  if (err.message && err.message.includes('buffering timed out')) {
+    const message = 'Database connection timeout. Please try again in a moment.';
+    error = { message, statusCode: STATUS.SERVER_ERROR };
+  }
+
+  if (err.name === 'MongoServerError' || err.name === 'MongoNetworkError') {
+    const message = 'Database connection error. Please try again in a moment.';
+    error = { message, statusCode: STATUS.SERVER_ERROR };
+  }
+
+  // Mongoose connection errors
+  if (err.name === 'MongooseError' && err.message.includes('connection')) {
+    const message = 'Database connection unavailable. Please try again in a moment.';
+    error = { message, statusCode: STATUS.SERVER_ERROR };
+  }
+
   res.status(error.statusCode || STATUS.SERVER_ERROR).json({
     success: false,
     message: error.message || MESSAGES.SERVER_ERROR,

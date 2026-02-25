@@ -28,6 +28,7 @@ const adminRoutes = require('./routes/adminRoutes');
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
+const checkDBConnection = require('./middleware/dbConnection');
 
 // Import constants
 const { RATE_LIMIT } = require('./config/constants');
@@ -109,14 +110,19 @@ app.use('/api/', limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health Check Route
+// Health Check Route (before DB connection check)
+const { isConnected } = require('./config/database');
 app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server is running',
+    database: isConnected() ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
   });
 });
+
+// Database connection check middleware (applied to all API routes)
+app.use('/api', checkDBConnection);
 
 // API Routes
 app.use('/api', publicRoutes);
