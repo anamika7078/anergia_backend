@@ -110,8 +110,36 @@ app.use('/api/', limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health Check Route (before DB connection check)
+// Root Route
 const { isConnected } = require('./config/database');
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Anergia Backend API',
+    version: '1.0.0',
+    status: 'running',
+    database: isConnected() ? 'connected' : 'disconnected',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+      public: {
+        products: '/api/products',
+        services: '/api/services',
+        blogs: '/api/blogs',
+        settings: '/api/settings',
+        contact: '/api/contact',
+        demo: '/api/demo',
+      },
+      admin: {
+        login: '/api/admin/login',
+        register: '/api/admin/register',
+      },
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Health Check Route (before DB connection check)
 app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
