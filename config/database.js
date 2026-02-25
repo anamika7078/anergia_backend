@@ -18,7 +18,9 @@ const connectDB = async () => {
     }
 
     // Configure mongoose to handle connection better
-    mongoose.set('bufferCommands', false); // Disable buffering - fail fast if not connected
+    // Allow buffering during initial connection attempts
+    // This allows operations to wait for connection instead of failing immediately
+    mongoose.set('bufferCommands', true);
     
     const conn = await mongoose.connect(uri, {
       useNewUrlParser: true,
@@ -106,22 +108,61 @@ const isConnected = () => {
  * @param {number} timeoutMs - Maximum time to wait in milliseconds
  * @returns {Promise<boolean>} True if connected, false if timeout
  */
-const waitForConnection = async (timeoutMs = 10000) => {
+const waitForConnection = async (timeoutMs = 15000) => {
   if (isConnected()) {
     return true;
   }
 
   return new Promise((resolve) => {
     const startTime = Date.now();
+    
+    // Listen for connection event
+    const onConnected = () => {
+      mongoose.connection.removeListener('connected', onConnected);
+      mongoose.connection.removeListener('error', onError);
+      clearTimeout(timeout);
+      resolve(true);
+    };
+    
+    // Listen for error event
+    const onError = () => {
+      // Don't resolve on error, let timeout handle it
+    };
+    
+    // Set timeout
+    const timeout = setTimeout(() => {
+      mongoose.connection.removeListener('connected', onConnected);
+      mongoose.connection.removeListener('error', onError);
+      resolve(false);
+    }, timeoutMs);
+    
+    // Check if already connected
+    if (isConnected()) {
+      clearTimeout(timeout);
+      resolve(true);
+      return;
+    }
+    
+    // Listen for connection events
+    mongoose.connection.once('connected', onConnected);
+    mongoose.connection.once('error', onError);
+    
+    // Also poll in case events are missed
     const checkInterval = setInterval(() => {
       if (isConnected()) {
         clearInterval(checkInterval);
+        mongoose.connection.removeListener('connected', onConnected);
+        mongoose.connection.removeListener('error', onError);
+        clearTimeout(timeout);
         resolve(true);
       } else if (Date.now() - startTime > timeoutMs) {
         clearInterval(checkInterval);
+        mongoose.connection.removeListener('connected', onConnected);
+        mongoose.connection.removeListener('error', onError);
+        clearTimeout(timeout);
         resolve(false);
       }
-    }, 100);
+    }, 200);
   });
 };
 
