@@ -23,8 +23,6 @@ const connectDB = async () => {
     mongoose.set('bufferCommands', true);
     
     const conn = await mongoose.connect(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 30000, // 30 seconds timeout
       socketTimeoutMS: 45000, // 45 seconds socket timeout
       connectTimeoutMS: 30000, // 30 seconds connection timeout
@@ -87,8 +85,9 @@ const connectDB = async () => {
       console.error('❌ Max retry attempts reached. MongoDB connection failed.');
       console.log('⚠️  Server will continue without database connection.');
       console.log('⚠️  Please check:');
-      console.log('   1. MONGODB_URI is correct in environment variables');
-      console.log('   2. MongoDB Atlas IP whitelist includes Render IPs (0.0.0.0/0)');
+      console.log('   1. MONGODB_URI is correct in your .env');
+      console.log('   2. MongoDB Atlas IP whitelist: add your current IP (or 0.0.0.0/0 for anywhere)');
+      console.log('      → https://www.mongodb.com/docs/atlas/security-whitelist/');
       console.log('   3. MongoDB cluster is not paused');
       console.log('   4. Database user credentials are correct');
     }
