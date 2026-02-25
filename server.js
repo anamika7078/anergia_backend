@@ -38,10 +38,7 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// Security Middleware
-app.use(helmet()); // Set various HTTP headers for security
-
-// CORS Configuration
+// CORS Configuration - MUST be before other middleware
 // Allow multiple origins for development and production
 const allowedOrigins = [
   process.env.FRONTEND_URL,
@@ -62,15 +59,28 @@ const corsOptions = {
     if (isAllowed || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
+      console.warn(`CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Authorization'],
   optionsSuccessStatus: 200,
+  preflightContinue: false,
 };
+
+// Apply CORS before other middleware
 app.use(cors(corsOptions));
 
-// Rate Limiting - Excludes login and register endpoints
+// Security Middleware - Configure helmet to not interfere with CORS
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+}));
+
+// Rate Limiting - Excludes login, register, and OPTIONS requests
 const limiter = rateLimit({
   windowMs: RATE_LIMIT.WINDOW_MS,
   max: RATE_LIMIT.MAX_REQUESTS,
@@ -81,7 +91,8 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for login and register endpoints
+    // Skip rate limiting for OPTIONS (preflight), login and register endpoints
+    if (req.method === 'OPTIONS') return true;
     const path = req.originalUrl || req.path;
     return path.includes('/admin/login') || path.includes('/admin/register');
   },
