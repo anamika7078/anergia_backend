@@ -83,6 +83,40 @@ const websiteSettingsSchema = new mongoose.Schema(
         default: '',
       },
     },
+    testimonials: [
+      {
+        name: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        company: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        role: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        content: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        avatar: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        color: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+      },
+    ],
   },
   {
     timestamps: true,
